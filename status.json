@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-25T08:41:57.104Z",
+  "updatedAt": "2026-08-25T08:47:30.636Z",
   "services": {
     "cloudflare-matchmaking": {
       "status": "outage",
-      "reason": "durable_object_unavailable",
-      "message": "オンライン対戦のバックエンドを利用できないため、一時停止しています。",
-      "resumeAt": "",
-      "updatedAt": "2026-08-25T08:41:57.104Z",
-      "lastCheckedAt": "2026-08-25T08:41:57.104Z",
+      "reason": "daily_limit",
+      "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
+      "resumeAt": "2026-08-26T00:01:00.000Z",
+      "updatedAt": "2026-08-25T08:47:30.636Z",
+      "lastCheckedAt": "2026-08-25T08:47:30.636Z",
       "monitor": {
-        "consecutiveFailures": 1,
+        "consecutiveFailures": 2,
         "lastHttpStatus": 503,
-        "lastProbeKind": "backend-failure"
+        "lastProbeKind": "daily-limit"
       }
     },
     "yubi-strategy-online": {
@@ -29,5 +29,5 @@
       }
     }
   },
-  "lastCheckedAt": "2026-08-25T08:41:57.104Z"
+  "lastCheckedAt": "2026-08-25T08:47:30.636Z"
 }
