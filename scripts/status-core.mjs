@@ -2,7 +2,8 @@ const DAILY_LIMIT_PATTERNS = [
   /error\s*1027/i,
   /(?:code|error)["'\s:=]+1027/i,
   /daily\s+(?:request\s+)?limit/i,
-  /daily_limit/i
+  /daily_limit/i,
+  /exceeded\s+allowed\s+volume\s+of\s+requests\s+in\s+durable\s+objects\s+free\s+tier/i
 ];
 
 export function looksLikeDailyLimit(httpStatus, body = '') {
@@ -95,7 +96,7 @@ export function evolveStatus({ previous, probe, nowMs }) {
   if (probe.kind === 'daily-limit') {
     const prevResumeMs = Date.parse(previous?.resumeAt || '');
     const wasDailyLimit = previous?.reason === 'daily_limit';
-    // First detection sleeps until the next JST 09:05. If the limit remains after that,
+    // First detection sleeps until the next JST 09:01. If the limit remains after that,
     // retry in 30 minutes instead of incorrectly sleeping for another whole day.
     const resumeMs = wasDailyLimit && Number.isFinite(prevResumeMs) && prevResumeMs <= nowMs
       ? nowMs + 30 * 60 * 1000

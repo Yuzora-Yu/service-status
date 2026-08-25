@@ -20,12 +20,26 @@ test('detects Cloudflare 1027 and HTTP 429', () => {
   assert.equal(looksLikeDailyLimit(500, '<h1>Error 1027</h1>'), true);
   assert.equal(looksLikeDailyLimit(429, ''), true);
   assert.equal(looksLikeDailyLimit(503, 'temporary'), false);
+  assert.equal(looksLikeDailyLimit(503, 'Exceeded allowed volume of requests in Durable Objects free tier.'), true);
 });
 
 test('deep health requires Worker, Durable Object, and the production CORS origin', () => {
   assert.equal(classifyProbe(deepHealthy).kind, 'healthy');
   assert.equal(classifyProbe({ ...deepHealthy, corsAllowedOrigin:'https://example.com' }).kind, 'cors-failure');
   assert.equal(classifyProbe({ ...deepHealthy, httpStatus:503, json:{ok:false,worker:true,durableObject:false} }).kind, 'backend-failure');
+  const doLimitBody = JSON.stringify({
+    ok:false, worker:true, durableObject:false,
+    components:{
+      room:{ok:false,error:'Exceeded allowed volume of requests in Durable Objects free tier.'},
+      matchmaker:{ok:false,error:'Exceeded allowed volume of requests in Durable Objects free tier.'}
+    }
+  });
+  assert.equal(classifyProbe({
+    ...deepHealthy,
+    httpStatus:503,
+    body:doLimitBody,
+    json:JSON.parse(doLimitBody)
+  }).kind, 'daily-limit');
   assert.equal(classifyProbe({ ...deepHealthy, json:{ok:true} }).kind, 'failure');
   assert.equal(classifyProbe({ httpStatus:0, error:'timeout', expectedOrigin:'https://yu-zora.com', corsAllowedOrigin:'' }).kind, 'failure');
 });
