@@ -3,8 +3,17 @@ import assert from 'node:assert/strict';
 import { classifyProbe, evolveStatus, looksLikeDailyLimit, nextJstReset } from '../scripts/status-core.mjs';
 
 const base = {
-  status:'operational', reason:'', message:'', resumeAt:'', updatedAt:'2026-08-25T06:00:00.000Z',
-  monitor:{ consecutiveFailures:0, lastHttpStatus:200 }
+  status:'operational', reason:'', message:'', resumeAt:'',
+  updatedAt:'2026-08-25T06:00:00.000Z', lastCheckedAt:'2026-08-25T06:00:00.000Z',
+  monitor:{ consecutiveFailures:0, lastHttpStatus:200, lastProbeKind:'healthy' }
+};
+
+const deepHealthy = {
+  httpStatus:200,
+  body:'{"ok":true,"worker":true,"durableObject":true}',
+  json:{ok:true,worker:true,durableObject:true},
+  expectedOrigin:'https://yu-zora.com',
+  corsAllowedOrigin:'https://yu-zora.com'
 };
 
 test('detects Cloudflare 1027 and HTTP 429', () => {
@@ -13,20 +22,28 @@ test('detects Cloudflare 1027 and HTTP 429', () => {
   assert.equal(looksLikeDailyLimit(503, 'temporary'), false);
 });
 
-test('healthy response is operational', () => {
-  assert.equal(classifyProbe({ httpStatus:200, body:'{"ok":true}', json:{ok:true} }).kind, 'healthy');
+test('deep health requires Worker, Durable Object, and the production CORS origin', () => {
+  assert.equal(classifyProbe(deepHealthy).kind, 'healthy');
+  assert.equal(classifyProbe({ ...deepHealthy, corsAllowedOrigin:'https://example.com' }).kind, 'cors-failure');
+  assert.equal(classifyProbe({ ...deepHealthy, httpStatus:503, json:{ok:false,worker:true,durableObject:false} }).kind, 'backend-failure');
+  assert.equal(classifyProbe({ ...deepHealthy, json:{ok:true} }).kind, 'failure');
+  assert.equal(classifyProbe({ httpStatus:0, error:'timeout', expectedOrigin:'https://yu-zora.com', corsAllowedOrigin:'' }).kind, 'failure');
 });
 
-test('first two generic failures degrade, third stops service', () => {
+test('one generic failure degrades, second stops service on a 30-minute schedule', () => {
   const now = Date.parse('2026-08-25T06:40:00Z');
   const probe = { kind:'failure', httpStatus:503 };
   const one = evolveStatus({ previous:base, probe, nowMs:now }).service;
   assert.equal(one.status, 'degraded');
-  const two = evolveStatus({ previous:one, probe, nowMs:now+300000 }).service;
-  assert.equal(two.status, 'degraded');
-  const three = evolveStatus({ previous:two, probe, nowMs:now+600000 }).service;
-  assert.equal(three.status, 'outage');
-  assert.equal(three.reason, 'unreachable');
+  const two = evolveStatus({ previous:one, probe, nowMs:now+30*60*1000 }).service;
+  assert.equal(two.status, 'outage');
+  assert.equal(two.reason, 'unreachable');
+});
+
+test('CORS and Durable Object failures stop publication immediately', () => {
+  const now = Date.parse('2026-08-25T06:40:00Z');
+  assert.equal(evolveStatus({ previous:base, probe:{kind:'cors-failure',httpStatus:200}, nowMs:now }).service.reason, 'cors_misconfigured');
+  assert.equal(evolveStatus({ previous:base, probe:{kind:'backend-failure',httpStatus:503}, nowMs:now }).service.reason, 'matchmaking_unavailable');
 });
 
 test('daily limit resumes at next 09:05 JST', () => {
@@ -38,7 +55,10 @@ test('daily limit resumes at next 09:05 JST', () => {
   assert.equal(nextJstReset(now), Date.parse('2026-08-26T00:05:00.000Z'));
 });
 
-test('healthy state does not rewrite status every five minutes', () => {
-  const result = evolveStatus({ previous:base, probe:{kind:'healthy',httpStatus:200}, nowMs:Date.now() });
+test('healthy check refreshes lastCheckedAt without changing statusChangedAt', () => {
+  const now = Date.parse('2026-08-25T07:00:00Z');
+  const result = evolveStatus({ previous:base, probe:{kind:'healthy',httpStatus:200}, nowMs:now });
   assert.equal(result.changed, false);
+  assert.equal(result.service.updatedAt, base.updatedAt);
+  assert.equal(result.service.lastCheckedAt, '2026-08-25T07:00:00.000Z');
 });

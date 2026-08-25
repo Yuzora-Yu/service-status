@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>YU-ZORA Service Status</title>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light dark}body{max-width:760px;margin:48px auto;padding:0 20px;line-height:1.7}main{border:1px solid #8886;border-radius:16px;padding:24px}.row{display:flex;justify-content:space-between;gap:24px;align-items:center}.badge{padding:4px 10px;border-radius:999px;background:#8882;font-weight:700}small{opacity:.72}code{word-break:break-all}
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light dark}body{max-width:760px;margin:48px auto;padding:0 20px;line-height:1.7}main{border:1px solid #8886;border-radius:16px;padding:24px}.row{display:flex;justify-content:space-between;gap:24px;align-items:center}.badge{padding:4px 10px;border-radius:999px;background:#8882;font-weight:700}.times{display:grid;gap:2px;margin-top:18px}small{opacity:.72}code{word-break:break-all}
 </style>
 </head>
 <body>
@@ -14,10 +14,10 @@
 <h1>YU-ZORA Service Status</h1>
 <div class="row"><strong>Cloudflare matchmaking</strong><span id="badge" class="badge">確認中</span></div>
 <p id="message">ステータスを取得しています。</p>
-<small id="updated"></small>
+<div class="times"><small id="checked"></small><small id="changed"></small><small id="resume"></small></div>
 </main>
 <script>
-(async()=>{const badge=document.querySelector('#badge'),message=document.querySelector('#message'),updated=document.querySelector('#updated');try{const r=await fetch('./status.json',{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const j=await r.json(),s=j.services?.['cloudflare-matchmaking'];if(!s)throw new Error('missing service');const labels={operational:'稼働中',degraded:'不安定',outage:'停止中'};badge.textContent=labels[s.status]||s.status;message.textContent=s.message||(s.status==='operational'?'フレンド対戦サーバーは利用できます。':'状態を確認しています。');updated.textContent=`更新: ${new Date(s.updatedAt||j.updatedAt).toLocaleString('ja-JP')}`;}catch{badge.textContent='不明';message.textContent='ステータス情報を取得できませんでした。';}})();
+(async()=>{const badge=document.querySelector('#badge'),message=document.querySelector('#message'),checked=document.querySelector('#checked'),changed=document.querySelector('#changed'),resume=document.querySelector('#resume');const fmt=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('ja-JP')};try{const r=await fetch(`./status.json?t=${Math.floor(Date.now()/300000)}`,{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const j=await r.json(),s=j.services?.['cloudflare-matchmaking'];if(!s)throw new Error('missing service');const labels={operational:'稼働中',degraded:'不安定',outage:'停止中'};badge.textContent=labels[s.status]||s.status;message.textContent=s.message||(s.status==='operational'?'フレンド対戦サーバーは利用できます。':'状態を確認しています。');const lastChecked=fmt(s.lastCheckedAt||j.lastCheckedAt);const statusChanged=fmt(s.updatedAt||j.updatedAt);checked.textContent=lastChecked?`最終確認: ${lastChecked}`:'';changed.textContent=statusChanged?`状態変更: ${statusChanged}`:'';const resumeAt=fmt(s.resumeAt);resume.textContent=resumeAt?`再確認予定: ${resumeAt}`:'';}catch{badge.textContent='不明';message.textContent='ステータス情報を取得できませんでした。';checked.textContent='';changed.textContent='';resume.textContent='';}})();
 </script>
 </body>
 </html>

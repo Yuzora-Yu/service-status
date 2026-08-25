@@ -21,39 +21,73 @@ export function nextJstReset(nowMs, graceMinutes = 5) {
 export function normalizePrevious(payload, serviceKey) {
   const service = payload?.services?.[serviceKey];
   return service && typeof service === 'object' ? service : {
-    status: 'operational', reason: '', message: '', resumeAt: '', updatedAt: '',
-    monitor: { consecutiveFailures: 0, lastHttpStatus: 0 }
+    status: 'operational', reason: '', message: '', resumeAt: '', updatedAt: '', lastCheckedAt: '',
+    monitor: { consecutiveFailures: 0, lastHttpStatus: 0, lastProbeKind: '' }
   };
 }
 
-export function classifyProbe({ httpStatus = 0, body = '', json = null, error = '' }) {
-  if (looksLikeDailyLimit(httpStatus, body)) {
-    return { kind: 'daily-limit', httpStatus: Number(httpStatus) || 0 };
+export function classifyProbe({
+  httpStatus = 0,
+  body = '',
+  json = null,
+  error = '',
+  expectedOrigin = '',
+  corsAllowedOrigin = ''
+}) {
+  const status = Number(httpStatus) || 0;
+  if (looksLikeDailyLimit(status, body)) {
+    return { kind: 'daily-limit', httpStatus: status };
   }
-  if (Number(httpStatus) === 200 && json?.ok === true) {
+
+  const expected = String(expectedOrigin || '').trim();
+  const allowed = String(corsAllowedOrigin || '').trim();
+  // Missing CORS headers only prove a CORS problem when our endpoint itself answered normally
+  // or explicitly rejected the Origin. Network/edge failures often have no CORS header at all.
+  if (expected && (status === 200 || status === 403) && allowed !== expected && allowed !== '*') {
+    return { kind: 'cors-failure', httpStatus: status, expectedOrigin: expected, corsAllowedOrigin: allowed };
+  }
+
+  if (status === 200 && json?.ok === true && json?.worker === true && json?.durableObject === true) {
     return { kind: 'healthy', httpStatus: 200 };
   }
+
+  if (json && typeof json === 'object' && json.worker === true && json.durableObject === false) {
+    return { kind: 'backend-failure', httpStatus: status };
+  }
+
   return {
     kind: 'failure',
-    httpStatus: Number(httpStatus) || 0,
+    httpStatus: status,
     error: String(error || '')
   };
 }
 
-export function evolveStatus({ previous, probe, nowMs, heartbeatMs = 10 * 60 * 1000 }) {
+function monitorFor(probe, consecutiveFailures) {
+  return {
+    consecutiveFailures,
+    lastHttpStatus: probe.httpStatus || 0,
+    lastProbeKind: probe.kind
+  };
+}
+
+function withCheckTime(service, nowIso) {
+  return { ...service, lastCheckedAt: nowIso };
+}
+
+export function evolveStatus({ previous, probe, nowMs }) {
   const nowIso = new Date(nowMs).toISOString();
   const prevFailures = Math.max(0, Number(previous?.monitor?.consecutiveFailures) || 0);
-  const prevUpdatedMs = Date.parse(previous?.updatedAt || '');
+  const previousChangedAt = previous?.updatedAt || '';
 
   if (probe.kind === 'healthy') {
-    if (previous?.status === 'operational' && prevFailures === 0 && previous?.reason === '') {
-      return { changed: false, service: previous };
-    }
+    const alreadyHealthy = previous?.status === 'operational' && prevFailures === 0 && previous?.reason === '';
     return {
-      changed: true,
+      changed: !alreadyHealthy,
       service: {
-        status: 'operational', reason: '', message: '', resumeAt: '', updatedAt: nowIso,
-        monitor: { consecutiveFailures: 0, lastHttpStatus: 200 }
+        status: 'operational', reason: '', message: '', resumeAt: '',
+        updatedAt: alreadyHealthy ? (previousChangedAt || nowIso) : nowIso,
+        lastCheckedAt: nowIso,
+        monitor: monitorFor(probe, 0)
       }
     };
   }
@@ -62,39 +96,73 @@ export function evolveStatus({ previous, probe, nowMs, heartbeatMs = 10 * 60 * 1
     const prevResumeMs = Date.parse(previous?.resumeAt || '');
     const wasDailyLimit = previous?.reason === 'daily_limit';
     // First detection sleeps until the next JST 09:05. If the limit remains after that,
-    // retry in 10 minutes instead of incorrectly sleeping for another whole day.
+    // retry in 30 minutes instead of incorrectly sleeping for another whole day.
     const resumeMs = wasDailyLimit && Number.isFinite(prevResumeMs) && prevResumeMs <= nowMs
-      ? nowMs + 10 * 60 * 1000
+      ? nowMs + 30 * 60 * 1000
       : nextJstReset(nowMs);
     const resumeAt = new Date(resumeMs).toISOString();
-    const sameWindow = wasDailyLimit && previous?.status === 'outage' && previous?.resumeAt === resumeAt;
+    const sameState = wasDailyLimit && previous?.status === 'outage' && previous?.resumeAt === resumeAt;
     return {
-      changed: !sameWindow,
-      service: sameWindow ? previous : {
+      changed: !sameState,
+      service: {
         status: 'outage',
         reason: 'daily_limit',
         message: '無料サーバーが本日の利用上限に達したため、フレンド対戦は利用停止中です。',
         resumeAt,
-        updatedAt: nowIso,
-        monitor: { consecutiveFailures: 3, lastHttpStatus: probe.httpStatus || 0 }
+        updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
+        lastCheckedAt: nowIso,
+        monitor: monitorFor(probe, 2)
       }
     };
   }
 
-  const failures = Math.min(3, prevFailures + 1);
-  const status = failures >= 3 ? 'outage' : 'degraded';
-  const reason = failures >= 3 ? 'unreachable' : 'probe_failed';
-  const message = failures >= 3
+  if (probe.kind === 'cors-failure') {
+    const sameState = previous?.status === 'outage' && previous?.reason === 'cors_misconfigured';
+    return {
+      changed: !sameState,
+      service: {
+        status: 'outage',
+        reason: 'cors_misconfigured',
+        message: 'フレンド対戦サーバーの接続設定に問題があるため、現在利用できません。',
+        resumeAt: '',
+        updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
+        lastCheckedAt: nowIso,
+        monitor: monitorFor(probe, 1)
+      }
+    };
+  }
+
+  if (probe.kind === 'backend-failure') {
+    const sameState = previous?.status === 'outage' && previous?.reason === 'matchmaking_unavailable';
+    return {
+      changed: !sameState,
+      service: {
+        status: 'outage',
+        reason: 'matchmaking_unavailable',
+        message: 'フレンド対戦のマッチング機能を利用できないため、一時停止しています。',
+        resumeAt: '',
+        updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
+        lastCheckedAt: nowIso,
+        monitor: monitorFor(probe, 1)
+      }
+    };
+  }
+
+  // With a 30-minute schedule, two generic failures are enough to stop publication.
+  // A single timeout/network blip is only degraded to avoid false outages.
+  const failures = Math.min(2, prevFailures + 1);
+  const status = failures >= 2 ? 'outage' : 'degraded';
+  const reason = failures >= 2 ? 'unreachable' : 'probe_failed';
+  const message = failures >= 2
     ? 'フレンド対戦サーバーへ接続できないため、一時的に利用を停止しています。'
     : 'フレンド対戦サーバーが一時的に不安定です。';
-  const sameState = previous?.status === status && previous?.reason === reason && prevFailures === failures;
-  const heartbeatDue = !Number.isFinite(prevUpdatedMs) || prevUpdatedMs + heartbeatMs <= nowMs;
-  if (sameState && !heartbeatDue) return { changed: false, service: previous };
+  const sameState = previous?.status === status && previous?.reason === reason;
   return {
-    changed: true,
-    service: {
-      status, reason, message, resumeAt: '', updatedAt: nowIso,
-      monitor: { consecutiveFailures: failures, lastHttpStatus: probe.httpStatus || 0 }
-    }
+    changed: !sameState,
+    service: withCheckTime({
+      status, reason, message, resumeAt: '',
+      updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
+      monitor: monitorFor(probe, failures)
+    }, nowIso)
   };
 }

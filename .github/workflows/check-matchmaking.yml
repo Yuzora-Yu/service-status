@@ -10,9 +10,14 @@ on:
       - "package.json"
       - "index.html"
       - ".nojekyll"
+      - "status.json"
   schedule:
-    - cron: "*/5 * * * *"
+    # Every 30 minutes, offset from the top of the hour to avoid peak scheduler load.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
+  # Reserved for a trusted relay (never call this directly from browser JavaScript).
+  repository_dispatch:
+    types: [matchmaking-alert]
 
 concurrency:
   group: service-status-matchmaking
@@ -24,7 +29,8 @@ permissions:
   id-token: write
 
 env:
-  MATCHMAKING_HEALTH_URL: https://kanji-crash-match-server.rikai-829.workers.dev/health
+  MATCHMAKING_HEALTH_URL: https://kanji-crash-match-server.rikai-829.workers.dev/health/deep
+  MATCHMAKING_EXPECTED_ORIGIN: https://yu-zora.com
   SERVICE_KEY: cloudflare-matchmaking
 
 jobs:
@@ -41,26 +47,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Test monitor
         run: npm test
 
       - name: Probe matchmaking Worker
+        id: probe
         run: node scripts/check-matchmaking.mjs
 
-      - name: Detect published status changes
-        id: changes
-        shell: bash
-        run: |
-          if git diff --quiet -- status.json; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Commit status change
-        if: steps.changes.outputs.changed == 'true'
+        if: ${{ steps.probe.outputs.status_changed == 'true' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -70,23 +67,23 @@ jobs:
           git push
 
       - name: Prepare Pages artifact
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         shell: bash
         run: |
           mkdir -p _site
           cp status.json index.html .nojekyll _site/
 
       - name: Configure GitHub Pages
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy GitHub Pages
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         id: deployment
         uses: actions/deploy-pages@v4
