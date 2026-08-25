@@ -13,7 +13,7 @@ on:
       - "status.json"
   schedule:
     # Every 30 minutes, offset from the top of the hour to avoid peak scheduler load.
-    - cron: "17,47 * * * *"
+    - cron: "1,31 * * * *"
   workflow_dispatch:
   # Reserved for a trusted relay (never call this directly from browser JavaScript).
   repository_dispatch:
