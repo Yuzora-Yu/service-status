@@ -1,20 +1,33 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-25T07:04:04.595Z",
+  "updatedAt": "2026-08-25T08:10:31.704Z",
   "services": {
     "cloudflare-matchmaking": {
       "status": "outage",
       "reason": "cors_misconfigured",
-      "message": "フレンド対戦サーバーの接続設定に問題があるため、現在利用できません。",
+      "message": "オンライン対戦サーバーの接続設定に問題があるため、現在利用できません。",
       "resumeAt": "",
       "updatedAt": "2026-08-25T07:04:04.595Z",
-      "lastCheckedAt": "2026-08-25T07:04:04.595Z",
+      "lastCheckedAt": "2026-08-25T08:10:31.278Z",
       "monitor": {
         "consecutiveFailures": 1,
         "lastHttpStatus": 403,
         "lastProbeKind": "cors-failure"
       }
+    },
+    "yubi-strategy-online": {
+      "status": "outage",
+      "reason": "durable_object_unavailable",
+      "message": "オンライン対戦のバックエンドを利用できないため、一時停止しています。",
+      "resumeAt": "",
+      "updatedAt": "2026-08-25T08:10:31.704Z",
+      "lastCheckedAt": "2026-08-25T08:10:31.704Z",
+      "monitor": {
+        "consecutiveFailures": 1,
+        "lastHttpStatus": 503,
+        "lastProbeKind": "backend-failure"
+      }
     }
   },
-  "lastCheckedAt": "2026-08-25T07:04:04.595Z"
+  "lastCheckedAt": "2026-08-25T08:10:31.704Z"
 }
