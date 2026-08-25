@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-25T06:40:00.000Z",
+  "services": {
+    "cloudflare-matchmaking": {
+      "status": "operational",
+      "reason": "",
+      "message": "",
+      "resumeAt": "",
+      "updatedAt": "2026-08-25T06:40:00.000Z",
+      "monitor": {
+        "consecutiveFailures": 0,
+        "lastHttpStatus": 0
+      }
+    }
+  }
+}

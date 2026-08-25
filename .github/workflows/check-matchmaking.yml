@@ -1,0 +1,94 @@
+name: Check matchmaking status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/check-matchmaking.yml"
+      - "scripts/**"
+      - "test/**"
+      - "package.json"
+      - "index.html"
+      - ".nojekyll"
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: service-status-matchmaking
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  MATCHMAKING_HEALTH_URL: https://kanji-crash-match-server.rikai-829.workers.dev/health
+  SERVICE_KEY: cloudflare-matchmaking
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Test monitor
+        run: npm test
+
+      - name: Probe matchmaking Worker
+        run: node scripts/check-matchmaking.mjs
+
+      - name: Detect published status changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- status.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit status change
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status.json
+          git commit -m "chore(status): update matchmaking status"
+          git push
+
+      - name: Prepare Pages artifact
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        shell: bash
+        run: |
+          mkdir -p _site
+          cp status.json index.html .nojekyll _site/
+
+      - name: Configure GitHub Pages
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy GitHub Pages
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.changes.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>YU-ZORA Service Status</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light dark}body{max-width:760px;margin:48px auto;padding:0 20px;line-height:1.7}main{border:1px solid #8886;border-radius:16px;padding:24px}.row{display:flex;justify-content:space-between;gap:24px;align-items:center}.badge{padding:4px 10px;border-radius:999px;background:#8882;font-weight:700}small{opacity:.72}code{word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+<h1>YU-ZORA Service Status</h1>
+<div class="row"><strong>Cloudflare matchmaking</strong><span id="badge" class="badge">確認中</span></div>
+<p id="message">ステータスを取得しています。</p>
+<small id="updated"></small>
+</main>
+<script>
+(async()=>{const badge=document.querySelector('#badge'),message=document.querySelector('#message'),updated=document.querySelector('#updated');try{const r=await fetch('./status.json',{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const j=await r.json(),s=j.services?.['cloudflare-matchmaking'];if(!s)throw new Error('missing service');const labels={operational:'稼働中',degraded:'不安定',outage:'停止中'};badge.textContent=labels[s.status]||s.status;message.textContent=s.message||(s.status==='operational'?'フレンド対戦サーバーは利用できます。':'状態を確認しています。');updated.textContent=`更新: ${new Date(s.updatedAt||j.updatedAt).toLocaleString('ja-JP')}`;}catch{badge.textContent='不明';message.textContent='ステータス情報を取得できませんでした。';}})();
+</script>
+</body>
+</html>
