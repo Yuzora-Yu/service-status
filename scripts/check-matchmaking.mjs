@@ -16,6 +16,7 @@ function setOutput(key, value) {
 
 const raw = await fs.readFile(file, 'utf8');
 const payload = JSON.parse(raw);
+const hadPublishedService = !!(payload?.services && Object.prototype.hasOwnProperty.call(payload.services, serviceKey));
 const previous = normalizePrevious(payload, serviceKey);
 
 // A confirmed daily limit cannot recover before resumeAt, so do not burn requests checking it.
@@ -70,14 +71,25 @@ try {
 
 const probe = classifyProbe(probeInput);
 const { changed, service } = evolveStatus({ previous, probe, nowMs });
-console.log(`Probe result: ${probe.kind}; HTTP ${probe.httpStatus || 0}; statusChanged=${changed}`);
+const statusChanged = changed || !hadPublishedService;
+console.log(`Probe result: ${probe.kind}; HTTP ${probe.httpStatus || 0}; statusChanged=${statusChanged}`);
 if (probe.kind === 'cors-failure') {
   console.log(`CORS expected=${probe.expectedOrigin} actual=${probe.corsAllowedOrigin || '(missing)'}`);
 }
 
+function newestIso(...values) {
+  let best = '';
+  let bestMs = -Infinity;
+  for (const value of values) {
+    const ms = Date.parse(value || '');
+    if (Number.isFinite(ms) && ms > bestMs) { bestMs = ms; best = value; }
+  }
+  return best;
+}
+
 payload.schemaVersion = 1;
-payload.updatedAt = service.updatedAt || payload.updatedAt || service.lastCheckedAt;
-payload.lastCheckedAt = service.lastCheckedAt || payload.lastCheckedAt || '';
+payload.updatedAt = newestIso(payload.updatedAt, service.updatedAt, service.lastCheckedAt) || service.updatedAt || service.lastCheckedAt || '';
+payload.lastCheckedAt = newestIso(payload.lastCheckedAt, service.lastCheckedAt) || service.lastCheckedAt || payload.lastCheckedAt || '';
 payload.services ||= {};
 payload.services[serviceKey] = service;
 // Always write the just-checked timestamp for the Pages artifact. The workflow only commits
@@ -85,6 +97,6 @@ payload.services[serviceKey] = service;
 await fs.writeFile(file, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 
 await setOutput('probed', 'true');
-await setOutput('status_changed', changed ? 'true' : 'false');
+await setOutput('status_changed', statusChanged ? 'true' : 'false');
 await setOutput('probe_kind', probe.kind);
 console.log(`Prepared ${file}: ${service.status} / ${service.reason || 'ok'}; checked=${service.lastCheckedAt}`);

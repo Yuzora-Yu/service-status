@@ -6,18 +6,37 @@
 <meta name="robots" content="noindex">
 <title>YU-ZORA Service Status</title>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light dark}body{max-width:760px;margin:48px auto;padding:0 20px;line-height:1.7}main{border:1px solid #8886;border-radius:16px;padding:24px}.row{display:flex;justify-content:space-between;gap:24px;align-items:center}.badge{padding:4px 10px;border-radius:999px;background:#8882;font-weight:700}.times{display:grid;gap:2px;margin-top:18px}small{opacity:.72}code{word-break:break-all}
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light dark}body{max-width:860px;margin:48px auto;padding:0 20px;line-height:1.7}main{display:grid;gap:18px}h1{margin:0 0 10px}.service{border:1px solid #8886;border-radius:16px;padding:24px}.row{display:flex;justify-content:space-between;gap:24px;align-items:center}.badge{padding:4px 10px;border-radius:999px;background:#8882;font-weight:700;white-space:nowrap}.times{display:grid;gap:2px;margin-top:18px}small{opacity:.72}.summary{opacity:.72;margin-top:-8px}.error{border-color:#d55a}.loading{opacity:.7}
 </style>
 </head>
 <body>
-<main>
-<h1>YU-ZORA Service Status</h1>
-<div class="row"><strong>Cloudflare matchmaking</strong><span id="badge" class="badge">確認中</span></div>
-<p id="message">ステータスを取得しています。</p>
-<div class="times"><small id="checked"></small><small id="changed"></small><small id="resume"></small></div>
-</main>
+<header><h1>YU-ZORA Service Status</h1><p class="summary">オンライン機能の稼働状況</p></header>
+<main id="services"><section class="service loading">ステータスを取得しています。</section></main>
 <script>
-(async()=>{const badge=document.querySelector('#badge'),message=document.querySelector('#message'),checked=document.querySelector('#checked'),changed=document.querySelector('#changed'),resume=document.querySelector('#resume');const fmt=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('ja-JP')};try{const r=await fetch(`./status.json?t=${Math.floor(Date.now()/300000)}`,{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const j=await r.json(),s=j.services?.['cloudflare-matchmaking'];if(!s)throw new Error('missing service');const labels={operational:'稼働中',degraded:'不安定',outage:'停止中'};badge.textContent=labels[s.status]||s.status;message.textContent=s.message||(s.status==='operational'?'フレンド対戦サーバーは利用できます。':'状態を確認しています。');const lastChecked=fmt(s.lastCheckedAt||j.lastCheckedAt);const statusChanged=fmt(s.updatedAt||j.updatedAt);checked.textContent=lastChecked?`最終確認: ${lastChecked}`:'';changed.textContent=statusChanged?`状態変更: ${statusChanged}`:'';const resumeAt=fmt(s.resumeAt);resume.textContent=resumeAt?`再確認予定: ${resumeAt}`:'';}catch{badge.textContent='不明';message.textContent='ステータス情報を取得できませんでした。';checked.textContent='';changed.textContent='';resume.textContent='';}})();
+(async()=>{
+  const root=document.querySelector('#services');
+  const labels={
+    'cloudflare-matchmaking':'漢字でクラッシュ！キーボード — フレンド対戦',
+    'yubi-strategy-online':'指スト道場 — オンライン組手'
+  };
+  const statusLabels={operational:'稼働中',degraded:'不安定',outage:'停止中'};
+  const fmt=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('ja-JP')};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  try{
+    const r=await fetch(`./status.json?t=${Math.floor(Date.now()/60000)}`,{cache:'no-store'});
+    if(!r.ok)throw new Error(String(r.status));
+    const j=await r.json();
+    const entries=Object.entries(j.services||{});
+    if(!entries.length)throw new Error('missing services');
+    root.innerHTML=entries.map(([key,s])=>{
+      const checked=fmt(s.lastCheckedAt||j.lastCheckedAt),changed=fmt(s.updatedAt||j.updatedAt),resume=fmt(s.resumeAt);
+      const defaultMessage=s.status==='operational'?'オンライン対戦サーバーは利用できます。':'状態を確認しています。';
+      return `<section class="service ${s.status==='outage'?'error':''}"><div class="row"><strong>${esc(labels[key]||key)}</strong><span class="badge">${esc(statusLabels[s.status]||s.status||'不明')}</span></div><p>${esc(s.message||defaultMessage)}</p><div class="times"><small>${checked?`最終確認: ${esc(checked)}`:''}</small><small>${changed?`状態変更: ${esc(changed)}`:''}</small><small>${resume?`再確認予定: ${esc(resume)}`:''}</small></div></section>`;
+    }).join('');
+  }catch{
+    root.innerHTML='<section class="service error"><div class="row"><strong>ステータス</strong><span class="badge">不明</span></div><p>ステータス情報を取得できませんでした。</p></section>';
+  }
+})();
 </script>
 </body>
 </html>

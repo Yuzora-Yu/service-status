@@ -43,16 +43,16 @@ test('one generic failure degrades, second stops service on a 30-minute schedule
 test('CORS and Durable Object failures stop publication immediately', () => {
   const now = Date.parse('2026-08-25T06:40:00Z');
   assert.equal(evolveStatus({ previous:base, probe:{kind:'cors-failure',httpStatus:200}, nowMs:now }).service.reason, 'cors_misconfigured');
-  assert.equal(evolveStatus({ previous:base, probe:{kind:'backend-failure',httpStatus:503}, nowMs:now }).service.reason, 'matchmaking_unavailable');
+  assert.equal(evolveStatus({ previous:base, probe:{kind:'backend-failure',httpStatus:503}, nowMs:now }).service.reason, 'durable_object_unavailable');
 });
 
-test('daily limit resumes at next 09:05 JST', () => {
+test('daily limit resumes at next 09:01 JST', () => {
   const now = Date.parse('2026-08-25T06:40:00Z'); // 15:40 JST
   const result = evolveStatus({ previous:base, probe:{kind:'daily-limit',httpStatus:500}, nowMs:now }).service;
   assert.equal(result.status, 'outage');
   assert.equal(result.reason, 'daily_limit');
-  assert.equal(result.resumeAt, '2026-08-26T00:05:00.000Z');
-  assert.equal(nextJstReset(now), Date.parse('2026-08-26T00:05:00.000Z'));
+  assert.equal(result.resumeAt, '2026-08-26T00:01:00.000Z');
+  assert.equal(nextJstReset(now), Date.parse('2026-08-26T00:01:00.000Z'));
 });
 
 test('healthy check refreshes lastCheckedAt without changing statusChangedAt', () => {

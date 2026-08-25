@@ -10,9 +10,9 @@ export function looksLikeDailyLimit(httpStatus, body = '') {
   return DAILY_LIMIT_PATTERNS.some(pattern => pattern.test(String(body)));
 }
 
-export function nextJstReset(nowMs, graceMinutes = 5) {
+export function nextJstReset(nowMs, graceMinutes = 1) {
   const d = new Date(nowMs);
-  // JST 09:00 = UTC 00:00. A small grace period avoids racing the reset.
+  // JST 09:00 = UTC 00:00. Recheck at 09:01 JST to recover quickly after the daily reset.
   let reset = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, graceMinutes, 0, 0);
   if (reset <= nowMs) reset += 24 * 60 * 60 * 1000;
   return reset;
@@ -107,7 +107,7 @@ export function evolveStatus({ previous, probe, nowMs }) {
       service: {
         status: 'outage',
         reason: 'daily_limit',
-        message: '無料サーバーが本日の利用上限に達したため、フレンド対戦は利用停止中です。',
+        message: '無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。',
         resumeAt,
         updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
         lastCheckedAt: nowIso,
@@ -123,7 +123,7 @@ export function evolveStatus({ previous, probe, nowMs }) {
       service: {
         status: 'outage',
         reason: 'cors_misconfigured',
-        message: 'フレンド対戦サーバーの接続設定に問題があるため、現在利用できません。',
+        message: 'オンライン対戦サーバーの接続設定に問題があるため、現在利用できません。',
         resumeAt: '',
         updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
         lastCheckedAt: nowIso,
@@ -133,13 +133,13 @@ export function evolveStatus({ previous, probe, nowMs }) {
   }
 
   if (probe.kind === 'backend-failure') {
-    const sameState = previous?.status === 'outage' && previous?.reason === 'matchmaking_unavailable';
+    const sameState = previous?.status === 'outage' && previous?.reason === 'durable_object_unavailable';
     return {
       changed: !sameState,
       service: {
         status: 'outage',
-        reason: 'matchmaking_unavailable',
-        message: 'フレンド対戦のマッチング機能を利用できないため、一時停止しています。',
+        reason: 'durable_object_unavailable',
+        message: 'オンライン対戦のバックエンドを利用できないため、一時停止しています。',
         resumeAt: '',
         updatedAt: sameState ? (previousChangedAt || nowIso) : nowIso,
         lastCheckedAt: nowIso,
@@ -154,8 +154,8 @@ export function evolveStatus({ previous, probe, nowMs }) {
   const status = failures >= 2 ? 'outage' : 'degraded';
   const reason = failures >= 2 ? 'unreachable' : 'probe_failed';
   const message = failures >= 2
-    ? 'フレンド対戦サーバーへ接続できないため、一時的に利用を停止しています。'
-    : 'フレンド対戦サーバーが一時的に不安定です。';
+    ? 'オンライン対戦サーバーへ接続できないため、一時的に利用を停止しています。'
+    : 'オンライン対戦サーバーが一時的に不安定です。';
   const sameState = previous?.status === status && previous?.reason === reason;
   return {
     changed: !sameState,

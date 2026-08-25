@@ -10,9 +10,8 @@ on:
       - "package.json"
       - "index.html"
       - ".nojekyll"
-      - "status.json"
   schedule:
-    # Every 30 minutes, offset from the top of the hour to avoid peak scheduler load.
+    # Every 30 minutes at :01 and :31. This includes the 09:01 JST post-reset check.
     - cron: "1,31 * * * *"
   workflow_dispatch:
   # Reserved for a trusted relay (never call this directly from browser JavaScript).
@@ -28,15 +27,10 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  MATCHMAKING_HEALTH_URL: https://kanji-crash-match-server.rikai-829.workers.dev/health/deep
-  MATCHMAKING_EXPECTED_ORIGIN: https://yu-zora.com
-  SERVICE_KEY: cloudflare-matchmaking
-
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -52,38 +46,50 @@ jobs:
       - name: Test monitor
         run: npm test
 
-      - name: Probe matchmaking Worker
-        id: probe
+      - name: Probe kanji matchmaking Worker
+        id: probe_kanji
+        env:
+          MATCHMAKING_HEALTH_URL: https://kanji-crash-match-server.rikai-829.workers.dev/health/deep
+          MATCHMAKING_EXPECTED_ORIGIN: https://yu-zora.com
+          SERVICE_KEY: cloudflare-matchmaking
+        run: node scripts/check-matchmaking.mjs
+
+      - name: Probe yubi-strategy online Worker
+        id: probe_yubi
+        env:
+          MATCHMAKING_HEALTH_URL: https://yu-zora.com/games/yubi-strategy/health/deep
+          MATCHMAKING_EXPECTED_ORIGIN: https://yu-zora.com
+          SERVICE_KEY: yubi-strategy-online
         run: node scripts/check-matchmaking.mjs
 
       - name: Commit status change
-        if: ${{ steps.probe.outputs.status_changed == 'true' }}
+        if: ${{ steps.probe_kanji.outputs.status_changed == 'true' || steps.probe_yubi.outputs.status_changed == 'true' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add status.json
-          git commit -m "chore(status): update matchmaking status"
+          git commit -m "chore(status): update online service status"
           git push
 
       - name: Prepare Pages artifact
-        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
+        if: ${{ steps.probe_kanji.outputs.probed == 'true' || steps.probe_yubi.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         shell: bash
         run: |
           mkdir -p _site
           cp status.json index.html .nojekyll _site/
 
       - name: Configure GitHub Pages
-        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
+        if: ${{ steps.probe_kanji.outputs.probed == 'true' || steps.probe_yubi.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
+        if: ${{ steps.probe_kanji.outputs.probed == 'true' || steps.probe_yubi.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy GitHub Pages
-        if: ${{ steps.probe.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
+        if: ${{ steps.probe_kanji.outputs.probed == 'true' || steps.probe_yubi.outputs.probed == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'repository_dispatch' }}
         id: deployment
         uses: actions/deploy-pages@v4
