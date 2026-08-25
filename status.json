@@ -1,17 +1,20 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-25T06:40:00.000Z",
+  "updatedAt": "2026-08-25T07:04:04.595Z",
   "services": {
     "cloudflare-matchmaking": {
-      "status": "operational",
-      "reason": "",
-      "message": "",
+      "status": "outage",
+      "reason": "cors_misconfigured",
+      "message": "フレンド対戦サーバーの接続設定に問題があるため、現在利用できません。",
       "resumeAt": "",
-      "updatedAt": "2026-08-25T06:40:00.000Z",
+      "updatedAt": "2026-08-25T07:04:04.595Z",
+      "lastCheckedAt": "2026-08-25T07:04:04.595Z",
       "monitor": {
-        "consecutiveFailures": 0,
-        "lastHttpStatus": 0
+        "consecutiveFailures": 1,
+        "lastHttpStatus": 403,
+        "lastProbeKind": "cors-failure"
       }
     }
-  }
+  },
+  "lastCheckedAt": "2026-08-25T07:04:04.595Z"
 }
