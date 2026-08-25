@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-25T08:10:31.704Z",
+  "updatedAt": "2026-08-25T08:18:00.125Z",
   "services": {
     "cloudflare-matchmaking": {
       "status": "outage",
@@ -8,7 +8,7 @@
       "message": "オンライン対戦サーバーの接続設定に問題があるため、現在利用できません。",
       "resumeAt": "",
       "updatedAt": "2026-08-25T07:04:04.595Z",
-      "lastCheckedAt": "2026-08-25T08:10:31.278Z",
+      "lastCheckedAt": "2026-08-25T08:17:59.682Z",
       "monitor": {
         "consecutiveFailures": 1,
         "lastHttpStatus": 403,
@@ -17,17 +17,17 @@
     },
     "yubi-strategy-online": {
       "status": "outage",
-      "reason": "durable_object_unavailable",
-      "message": "オンライン対戦のバックエンドを利用できないため、一時停止しています。",
-      "resumeAt": "",
-      "updatedAt": "2026-08-25T08:10:31.704Z",
-      "lastCheckedAt": "2026-08-25T08:10:31.704Z",
+      "reason": "daily_limit",
+      "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
+      "resumeAt": "2026-08-26T00:01:00.000Z",
+      "updatedAt": "2026-08-25T08:18:00.125Z",
+      "lastCheckedAt": "2026-08-25T08:18:00.125Z",
       "monitor": {
-        "consecutiveFailures": 1,
+        "consecutiveFailures": 2,
         "lastHttpStatus": 503,
-        "lastProbeKind": "backend-failure"
+        "lastProbeKind": "daily-limit"
       }
     }
   },
-  "lastCheckedAt": "2026-08-25T08:10:31.704Z"
+  "lastCheckedAt": "2026-08-25T08:18:00.125Z"
 }
