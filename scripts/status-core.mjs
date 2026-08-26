@@ -11,9 +11,9 @@ export function looksLikeDailyLimit(httpStatus, body = '') {
   return DAILY_LIMIT_PATTERNS.some(pattern => pattern.test(String(body)));
 }
 
-export function nextJstReset(nowMs, graceMinutes = 1) {
+export function nextJstReset(nowMs, graceMinutes = 10) {
   const d = new Date(nowMs);
-  // JST 09:00 = UTC 00:00. Recheck at 09:01 JST to recover quickly after the daily reset.
+  // JST 09:00 = UTC 00:00. Recheck at 09:10 JST to allow for possible quota-reset propagation delay.
   let reset = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, graceMinutes, 0, 0);
   if (reset <= nowMs) reset += 24 * 60 * 60 * 1000;
   return reset;
@@ -96,10 +96,10 @@ export function evolveStatus({ previous, probe, nowMs }) {
   if (probe.kind === 'daily-limit') {
     const prevResumeMs = Date.parse(previous?.resumeAt || '');
     const wasDailyLimit = previous?.reason === 'daily_limit';
-    // First detection sleeps until the next JST 09:01. If the limit remains after that,
-    // retry in 30 minutes instead of incorrectly sleeping for another whole day.
+    // First detection sleeps until the next JST 09:10. If the limit remains after that,
+    // retry in 20 minutes instead of incorrectly sleeping for another whole day.
     const resumeMs = wasDailyLimit && Number.isFinite(prevResumeMs) && prevResumeMs <= nowMs
-      ? nowMs + 30 * 60 * 1000
+      ? nowMs + 20 * 60 * 1000
       : nextJstReset(nowMs);
     const resumeAt = new Date(resumeMs).toISOString();
     const sameState = wasDailyLimit && previous?.status === 'outage' && previous?.resumeAt === resumeAt;
@@ -149,7 +149,7 @@ export function evolveStatus({ previous, probe, nowMs }) {
     };
   }
 
-  // With a 30-minute schedule, two generic failures are enough to stop publication.
+  // With a 20-minute schedule, two generic failures are enough to stop publication.
   // A single timeout/network blip is only degraded to avoid false outages.
   const failures = Math.min(2, prevFailures + 1);
   const status = failures >= 2 ? 'outage' : 'degraded';

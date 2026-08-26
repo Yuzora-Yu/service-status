@@ -16,7 +16,7 @@ YU-ZORA各ゲームが共通参照する公開ステータスです。Cloudflare
 
 ## 監視仕様
 
-- GitHub Actionsは毎時01分・31分（30分間隔）に各 `/health/deep` を確認します。
+- GitHub Actionsは毎時10分・30分・50分（20分間隔）に各 `/health/deep` を確認します。
 - probeには `Origin: https://yu-zora.com` を付け、本番CORSレスポンスも検証します。
 - `/health/deep` はWorker本体だけでなくDurable Objectまで到達確認します。監視用IDを使い、実際の対戦ルームや待機列は作成しません。
 - Worker + CORS + Durable Objectが正常 → `operational`
@@ -25,8 +25,8 @@ YU-ZORA各ゲームが共通参照する公開ステータスです。Cloudflare
 - 一般的なタイムアウト・通信失敗1回 → `degraded`
 - 一般的な失敗2回連続 → `outage / unreachable`
 - HTTP 429 または Cloudflare `Error 1027` → 即 `outage / daily_limit`
-- `daily_limit` 確定後は翌09:01 JSTまでWorkerを再確認しません。
-- 翌09:01以降も上限状態なら30分後に再確認します。
+- `daily_limit` 確定後は翌09:10 JSTまでWorkerを再確認しません。
+- 翌09:10以降も上限状態なら20分後に再確認します。
 
 `lastCheckedAt` は実際にprobeした最新時刻、`updatedAt` は公開状態が最後に変化した時刻です。通常の正常チェックではGit commitを増やしませんが、GitHub Pagesには最新の `lastCheckedAt` を反映します。
 

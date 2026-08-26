@@ -44,12 +44,12 @@ test('deep health requires Worker, Durable Object, and the production CORS origi
   assert.equal(classifyProbe({ httpStatus:0, error:'timeout', expectedOrigin:'https://yu-zora.com', corsAllowedOrigin:'' }).kind, 'failure');
 });
 
-test('one generic failure degrades, second stops service on a 30-minute schedule', () => {
+test('one generic failure degrades, second stops service on a 20-minute schedule', () => {
   const now = Date.parse('2026-08-25T06:40:00Z');
   const probe = { kind:'failure', httpStatus:503 };
   const one = evolveStatus({ previous:base, probe, nowMs:now }).service;
   assert.equal(one.status, 'degraded');
-  const two = evolveStatus({ previous:one, probe, nowMs:now+30*60*1000 }).service;
+  const two = evolveStatus({ previous:one, probe, nowMs:now+20*60*1000 }).service;
   assert.equal(two.status, 'outage');
   assert.equal(two.reason, 'unreachable');
 });
@@ -60,13 +60,26 @@ test('CORS and Durable Object failures stop publication immediately', () => {
   assert.equal(evolveStatus({ previous:base, probe:{kind:'backend-failure',httpStatus:503}, nowMs:now }).service.reason, 'durable_object_unavailable');
 });
 
-test('daily limit resumes at next 09:01 JST', () => {
+test('daily limit resumes at next 09:10 JST', () => {
   const now = Date.parse('2026-08-25T06:40:00Z'); // 15:40 JST
   const result = evolveStatus({ previous:base, probe:{kind:'daily-limit',httpStatus:500}, nowMs:now }).service;
   assert.equal(result.status, 'outage');
   assert.equal(result.reason, 'daily_limit');
-  assert.equal(result.resumeAt, '2026-08-26T00:01:00.000Z');
-  assert.equal(nextJstReset(now), Date.parse('2026-08-26T00:01:00.000Z'));
+  assert.equal(result.resumeAt, '2026-08-26T00:10:00.000Z');
+  assert.equal(nextJstReset(now), Date.parse('2026-08-26T00:10:00.000Z'));
+});
+
+test('daily limit still active after resume retries in 20 minutes', () => {
+  const now = Date.parse('2026-08-26T00:30:00Z'); // 09:30 JST
+  const previous = {
+    ...base,
+    status:'outage',
+    reason:'daily_limit',
+    resumeAt:'2026-08-26T00:10:00.000Z',
+    monitor:{ consecutiveFailures:2, lastHttpStatus:503, lastProbeKind:'daily-limit' }
+  };
+  const result = evolveStatus({ previous, probe:{kind:'daily-limit',httpStatus:503}, nowMs:now }).service;
+  assert.equal(result.resumeAt, '2026-08-26T00:50:00.000Z');
 });
 
 test('healthy check refreshes lastCheckedAt without changing statusChangedAt', () => {

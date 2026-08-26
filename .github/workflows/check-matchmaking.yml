@@ -11,8 +11,8 @@ on:
       - "index.html"
       - ".nojekyll"
   schedule:
-    # Every 30 minutes at :01 and :31. This includes the 09:01 JST post-reset check.
-    - cron: "1,31 * * * *"
+    # Every 20 minutes at :10, :30, and :50. The first post-reset check is 09:10 JST.
+    - cron: "10,30,50 * * * *"
   workflow_dispatch:
   # Reserved for a trusted relay (never call this directly from browser JavaScript).
   repository_dispatch:
