@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-25T08:47:30.636Z",
+  "updatedAt": "2026-08-26T00:37:34.395Z",
   "services": {
     "cloudflare-matchmaking": {
       "status": "outage",
       "reason": "daily_limit",
       "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
-      "resumeAt": "2026-08-26T00:01:00.000Z",
-      "updatedAt": "2026-08-25T08:47:30.636Z",
-      "lastCheckedAt": "2026-08-25T08:47:30.636Z",
+      "resumeAt": "2026-08-26T01:07:33.862Z",
+      "updatedAt": "2026-08-26T00:37:33.862Z",
+      "lastCheckedAt": "2026-08-26T00:37:33.862Z",
       "monitor": {
         "consecutiveFailures": 2,
         "lastHttpStatus": 503,
@@ -19,9 +19,9 @@
       "status": "outage",
       "reason": "daily_limit",
       "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
-      "resumeAt": "2026-08-26T00:01:00.000Z",
-      "updatedAt": "2026-08-25T08:18:00.125Z",
-      "lastCheckedAt": "2026-08-25T08:18:00.125Z",
+      "resumeAt": "2026-08-26T01:07:34.395Z",
+      "updatedAt": "2026-08-26T00:37:34.395Z",
+      "lastCheckedAt": "2026-08-26T00:37:34.395Z",
       "monitor": {
         "consecutiveFailures": 2,
         "lastHttpStatus": 503,
@@ -29,5 +29,5 @@
       }
     }
   },
-  "lastCheckedAt": "2026-08-25T08:47:30.636Z"
+  "lastCheckedAt": "2026-08-26T00:37:34.395Z"
 }
