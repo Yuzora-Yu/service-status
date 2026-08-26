@@ -1,33 +1,33 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-26T00:37:34.395Z",
+  "updatedAt": "2026-08-26T01:12:32.145Z",
   "services": {
     "cloudflare-matchmaking": {
-      "status": "outage",
-      "reason": "daily_limit",
-      "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
-      "resumeAt": "2026-08-26T01:07:33.862Z",
-      "updatedAt": "2026-08-26T00:37:33.862Z",
-      "lastCheckedAt": "2026-08-26T00:37:33.862Z",
+      "status": "operational",
+      "reason": "",
+      "message": "",
+      "resumeAt": "",
+      "updatedAt": "2026-08-26T01:12:31.763Z",
+      "lastCheckedAt": "2026-08-26T01:12:31.763Z",
       "monitor": {
-        "consecutiveFailures": 2,
-        "lastHttpStatus": 503,
-        "lastProbeKind": "daily-limit"
+        "consecutiveFailures": 0,
+        "lastHttpStatus": 200,
+        "lastProbeKind": "healthy"
       }
     },
     "yubi-strategy-online": {
-      "status": "outage",
-      "reason": "daily_limit",
-      "message": "無料サーバーが本日の利用上限に達したため、オンライン対戦は利用停止中です。",
-      "resumeAt": "2026-08-26T01:07:34.395Z",
-      "updatedAt": "2026-08-26T00:37:34.395Z",
-      "lastCheckedAt": "2026-08-26T00:37:34.395Z",
+      "status": "operational",
+      "reason": "",
+      "message": "",
+      "resumeAt": "",
+      "updatedAt": "2026-08-26T01:12:32.145Z",
+      "lastCheckedAt": "2026-08-26T01:12:32.145Z",
       "monitor": {
-        "consecutiveFailures": 2,
-        "lastHttpStatus": 503,
-        "lastProbeKind": "daily-limit"
+        "consecutiveFailures": 0,
+        "lastHttpStatus": 200,
+        "lastProbeKind": "healthy"
       }
     }
   },
-  "lastCheckedAt": "2026-08-26T00:37:34.395Z"
+  "lastCheckedAt": "2026-08-26T01:12:32.145Z"
 }
